@@ -1,0 +1,26 @@
+     h      k  r     max error  previous error/error  observed p
+   0.1    0.1 10 0.00085979403                   NaN         NaN
+  0.05   0.05 20 0.00019966817             4.3061147   2.1063867
+ 0.025  0.025 40 5.0534319e-05             3.9511399   1.9822689
+0.0125 0.0125 80 1.2711564e-05             3.9754603   1.9911219
+Finest-grid observed coupled order: 1.9911
+Additional spatial study: errors at t=0.5
+     h          k  r     max error  previous error/error  observed p
+   0.1       0.01  1 0.00070830873                   NaN         NaN
+  0.05     0.0025  1 0.00017685639             4.0049937      2.0018
+ 0.025   0.000625  1 4.4200349e-05             4.0012442   2.0004487
+0.0125 0.00015625  1 1.1049229e-05             4.0003108   2.0001121
+Additional temporal self-convergence at t=0.5
+   h  k (coarse)  k (fine)  r (coarse)  r (fine)  difference D(k)  previous D/D  observed p
+0.05        0.05     0.025          20        10    2.2828466e-05           NaN         NaN
+0.05       0.025    0.0125          10         5    5.7099615e-06      3.998007    1.999281
+0.05      0.0125   0.00625           5       2.5    1.4272494e-06     4.0006754   2.0002436
+0.05     0.00625  0.003125         2.5      1.25    3.5680698e-07     4.0000602   2.0000217
+Observed spatial order: 2.0001
+Observed temporal order: 2.0
+   h   r       k  time steps     max error
+0.05 0.5 0.00125         400 0.00017680405
+0.05   1  0.0025         200 0.00017685639
+0.05   5  0.0125          40 0.00017853049
+0.05  10   0.025          20 0.00018320438
+0.05  50   0.125           4 0.00033435538

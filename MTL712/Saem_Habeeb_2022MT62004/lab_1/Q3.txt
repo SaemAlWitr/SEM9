@@ -1,0 +1,2 @@
+Forward Euler maximum absolute error = 0.24907873671809
+Heun maximum absolute error = 0.00840196370164037

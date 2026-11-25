@@ -1,0 +1,732 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[a4paper,margin=23mm]{geometry}
+\usepackage{lmodern,amsmath,amssymb,xcolor,booktabs}
+\SetMathAlphabet{\mathbf}{normal}{OT1}{cmr}{bx}{n}
+\definecolor{Definition}{HTML}{3C68A2}
+\definecolor{Proof}{HTML}{9C5608}
+\definecolor{Result}{HTML}{28714F}
+\definecolor{Example}{HTML}{12666A}
+\definecolor{Remark}{HTML}{5F6267}
+\definecolor{Correction}{HTML}{A03D2C}
+\usepackage[colorlinks,linkcolor=Definition,urlcolor=Definition,
+pdftitle={MTL 712 - Post-Quiz 2 Notes},
+pdfsubject={Finite differences for elliptic and hyperbolic PDEs and heat-equation ADI schemes}]{hyperref}
+
+\numberwithin{equation}{section}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt plus 1pt}
+\setlength{\emergencystretch}{2em}
+\setcounter{tocdepth}{2}
+\raggedbottom
+\pagestyle{plain}
+
+\newsavebox{\notesbody}
+\newenvironment{notesbox}[2]{%
+  \par\addvspace{8pt}%
+  \def\notescolor{#1}\def\notestitle{#2}%
+  \setlength{\fboxrule}{0.55pt}%
+  \begin{lrbox}{\notesbody}%
+  \begin{minipage}{\dimexpr\linewidth-2\fboxrule-14pt\relax}%
+  \setlength{\parskip}{5pt}%
+  \ignorespaces
+}{%
+  \end{minipage}%
+  \end{lrbox}%
+  \noindent
+  \begingroup
+  \setlength{\fboxsep}{0pt}%
+  \setlength{\fboxrule}{0.55pt}%
+  \fcolorbox{\notescolor!68!white}{white}{%
+    \begin{minipage}{\dimexpr\linewidth-2\fboxrule\relax}%
+    \setlength{\fboxsep}{5pt}%
+    \colorbox{\notescolor}{%
+      \parbox{\dimexpr\linewidth-2\fboxsep\relax}{%
+      \color{white}\small\bfseries\strut\notestitle\strut}}%
+    \par\nointerlineskip
+    \setlength{\fboxsep}{7pt}%
+    \colorbox{\notescolor!6!white}{\usebox{\notesbody}}%
+    \end{minipage}}%
+  \endgroup
+  \par\addvspace{8pt}%
+}
+\newenvironment{proofbox}[2]{%
+  \begin{notesbox}{Proof}{\hypertarget{proof-#1}{\(\star\)}\enspace PROOF TO KNOW #1. #2}%
+}{\end{notesbox}}
+\newcommand{\prooflink}[2]{\item[\(\star\)]\hyperlink{proof-#1}{#1. #2}}
+\newcommand{\step}[2]{\par\smallskip\textbf{Step #1. #2}\enspace\ignorespaces}
+\newcommand{\sourcecheck}[1]{\begin{notesbox}{Correction}{About your notes}#1\end{notesbox}}
+\newcommand{\datebar}[1]{{\small\itshape #1}\par}
+\newcommand{\dx}{\delta_1^2}
+\newcommand{\dy}{\delta_2^2}
+\newcommand{\dt}{\delta_t^2}
+\newcommand{\R}{\Omega}
+\newcommand{\Pstep}{\tau}
+\newcommand{\kron}{\otimes}
+\newcommand{\bvec}{\mathbf b}
+\newcommand{\uv}{\mathbf U}
+\newcommand{\ones}{\mathbf 1}
+\newcommand{\diag}{\operatorname{diag}}
+
+\begin{document}
+
+\begin{center}
+\vspace*{10mm}
+{\LARGE\bfseries Post-Quiz 2 Notes\par}
+\smallskip
+{\large MTL 712 \enspace Computational Methods for Differential Equations\par}
+\smallskip
+Elliptic problems, alternating-direction methods and the wave equation
+\end{center}
+
+\begin{notesbox}{Proof}{How to use these notes}
+Start here after Section 20 of \texttt{till-quiz2.pdf}. These notes bring together Aditya's and Soumya's pages after the quiz on 2 November. The dated lectures span 3--16 November.
+
+Orange boxes work through the proofs. Blue boxes give definitions and schemes. Green boxes state results, teal boxes work through examples, and red boxes explain corrections to the handwritten notes.
+\end{notesbox}
+
+\subsection*{Proofs to know}
+\begin{itemize}\setlength{\itemsep}{3pt}
+\prooflink{21}{Derive the five-point Laplacian and its truncation error}
+\prooflink{22}{Find the eigenvalues of the Dirichlet matrix}
+\prooflink{23}{Show that Peaceman--Rachford solves the steady problem}
+\prooflink{24}{Prove convergence of the Dirichlet ADI iteration}
+\prooflink{25}{Eliminate the stage in Douglas--Rachford}
+\prooflink{26}{Find the Neumann nullspace and compatibility condition}
+\prooflink{27}{Show what happens to the constant mode under ADI}
+\prooflink{28}{Use the initial velocity to start the wave scheme}
+\prooflink{29}{Derive the explicit wave CFL bound}
+\prooflink{30}{Find the stability region of the weighted wave scheme}
+\prooflink{31}{Bound the DuFort--Frankel amplification roots}
+\end{itemize}
+
+\clearpage
+\begingroup
+\small
+\setlength{\parskip}{0pt}
+\tableofcontents
+\endgroup
+
+\clearpage
+\part{Elliptic equations and ADI}
+
+\section{Elliptic equations and the Dirichlet problem}\label{sec:elliptic}
+\datebar{3 November}
+In two variables the principal part is \(au_{xx}+2bu_{xy}+cu_{yy}\). The equation is elliptic where \(b^2-ac<0\). The right side may depend on \(x,y,u,u_x,u_y\). We work mainly with Laplace's equation, \(\Delta u=0\), and use \(\Delta u=f\) when a source is present (Poisson's equation).
+
+\begin{notesbox}{Definition}{The three boundary value problems}
+Let \(\R=(0,1)^2\). The symbol \(\partial_n\) means differentiation along the unit normal pointing out of \(\R\).
+\[
+\begin{array}{@{}lll@{}}
+\text{Dirichlet} & u=g & \text{prescribed values},\\
+\text{Neumann} & \partial_n u=g & \text{prescribed normal derivative},\\
+\text{Robin} & \alpha u+\beta\partial_n u=g & \text{a linear combination, with }\alpha,\beta>0.
+\end{array}
+\]
+\end{notesbox}
+\sourcecheck{The Robin condition in one source is missing the factor \(u\). Read its first term as \(\alpha u\).}
+
+\subsection{The grid and the five-point stencil}
+Set \(h=1/N\) and write \(U_{i,j}\) for the value at \(x_i=ih,\ y_j=jh\). There are \((N-1)^2\) interior unknowns with Dirichlet data. We insert the prescribed value \(g\) whenever the stencil reaches a boundary node.
+
+\begin{notesbox}{Definition}{Unscaled second differences}
+In space and, later, at times \(t_n=nk\), write
+\[
+\begin{aligned}
+ \dx U_{i,j}&=U_{i+1,j}-2U_{i,j}+U_{i-1,j},\\
+ \dy U_{i,j}&=U_{i,j+1}-2U_{i,j}+U_{i,j-1},\\
+ \dt U^n&=U^{n+1}-2U^n+U^{n-1}.
+\end{aligned}
+\]
+Divide spatial differences by \(h^2\) and time differences by \(k^2\) to approximate the corresponding second derivatives.
+\end{notesbox}
+
+\begin{proofbox}{21}{The five-point stencil from Taylor series}
+\step{1}{Use opposite neighbours.} At \((x_i,y_j)\), expand in the \(x\)-direction.
+\[
+ u(x_i\pm h,y_j)=u\pm h u_x+\frac{h^2}{2}u_{xx}
+ \pm\frac{h^3}{6}u_{xxx}+\frac{h^4}{24}u_{xxxx}+O(h^5).
+\]
+Add the two expansions and subtract \(2u\). The odd powers cancel. Keeping terms through fifth order before adding gives \(\dx u=h^2u_{xx}+\tfrac{h^4}{12}u_{xxxx}+O(h^6)\).
+
+\step{2}{Add the two directions.} Repeat along \(y\) and divide by \(h^2\).
+\[
+ \Delta_h u=\frac{(\dx+\dy)u}{h^2}
+ =\Delta u+\frac{h^2}{12}(u_{xxxx}+u_{yyyy})+O(h^4).
+\]
+The divided stencil has \(O(h^2)\) truncation error. Multiplying it by \(h^2\) gives an undivided residual of \(O(h^4)\).
+
+\step{3}{Write the interior equation.} Replace \(\Delta u=f\) by \(\Delta_h U=f\).
+\begin{equation}
+ U_{i-1,j}+U_{i+1,j}+U_{i,j-1}+U_{i,j+1}-4U_{i,j}=h^2f_{i,j}.
+ \label{eq:five}
+\end{equation}
+\end{proofbox}
+
+\subsection{Rectangular grids and unequal steps}
+\begin{notesbox}{Example}{Worked exercise. The rectangular-grid stencil}
+Let \(Q=h_1/h_2\). Start from \((\dx/h_1^2+\dy/h_2^2)U=f\). Multiplying by \(h_1h_2\) gives the \(x\)-neighbours weight \(Q^{-1}\) and the \(y\)-neighbours weight \(Q\).
+\[
+ Q^{-1}(U_{i-1,j}+U_{i+1,j})+Q(U_{i,j-1}+U_{i,j+1})
+ -2(Q+Q^{-1})U_{i,j}=h_1h_2 f_{i,j}.
+\]
+In the divided operator, the leading residual is
+\(\tfrac1{12}(h_1^2u_{xxxx}+h_2^2u_{yyyy})\).
+Multiply it by \(h_1h_2\) for the displayed stencil. For \(h_1=h_2\), the weights reduce to those in \eqref{eq:five}.
+\end{notesbox}
+\sourcecheck{Use fourth derivatives in the error term for the rectangular stencil. The second derivatives belong to the leading approximation to \(\Delta u\).}
+
+\subsection{From stencil to matrix}
+Multiply \eqref{eq:five} by \(-1\) to get diagonal \(4\) and neighbour coefficients \(-1\). Put the interior values into \(\uv\) with \(i\) varying fastest. Let \(L=N-1\), \(T_D=\operatorname{tridiag}(-1,2,-1)\) of size \(L\), and \(I_L\) be the identity. Then
+\begin{equation}
+ A\uv=\bvec,\qquad A=H+V,\qquad H=I_L\kron T_D,\qquad V=T_D\kron I_L.
+ \label{eq:dir}
+\end{equation}
+Here \(b_{i,j}=-h^2 f_{i,j}\) plus the sum of the prescribed values at the boundary neighbours. With \(B=2I_L+T_D\), the block and stencil views are
+\[
+ A=\begin{pmatrix}
+ B&-I_L\\
+ -I_L&B&\ddots\\
+ &\ddots&\ddots&-I_L\\
+ &&-I_L&B
+ \end{pmatrix},\quad
+ B=\begin{pmatrix}
+ 4&-1\\
+ -1&4&\ddots\\
+ &\ddots&\ddots&-1\\
+ &&-1&4
+ \end{pmatrix},\quad
+ \begin{array}{ccc}
+ & -1 &\\
+ -1 & 4 & -1\\
+ & -1 &
+ \end{array}.
+\]
+
+\begin{notesbox}{Example}{Worked example. The first interior row}
+Take \(N\ge3\). At \((i,j)=(1,1)\), the left and lower neighbours lie on the boundary. Move their terms to the right to obtain
+\[
+ 4U_{1,1}-U_{2,1}-U_{1,2}=g(0,h)+g(h,0)-h^2 f(h,h).
+\]
+For \(N=3\) and \(f=0\), the left side is the first row of a system with four interior unknowns.
+\end{notesbox}
+
+\subsection{Eigenvalues of the Dirichlet matrix}
+\begin{proofbox}{22}{Sine modes diagonalise the five-point matrix}
+\step{1}{Start with one grid line.} Take \(s_p(i)=\sin(p\pi i/N)\), \(1\le p\le N-1\). Its zero values at \(i=0,N\) fit the two ends of \(T_D\).
+The sine addition formula gives
+\[
+ 2s_p(i)-s_p(i-1)-s_p(i+1)
+ =\left(2-2\cos\frac{p\pi}{N}\right)s_p(i)
+ =\underbrace{4\sin^2\!\left(\frac{p\pi}{2N}\right)}_{\lambda_p}s_p(i).
+\]
+
+\step{2}{Form products.} On \(w_{pq}(i,j)=s_p(i)s_q(j)\), \(H\) acts only on the first factor and \(V\) only on the second. Hence
+\[
+ Hw_{pq}=\lambda_p w_{pq},\qquad Vw_{pq}=\lambda_q w_{pq},\qquad
+ Aw_{pq}=(\lambda_p+\lambda_q)w_{pq}.
+\]
+The products form an orthogonal basis. All sums \(\lambda_p+\lambda_q\) are positive, so \(A\) is invertible. The signs here correspond to \(A\) representing \(-h^2\Delta_h\).
+\end{proofbox}
+
+\begin{notesbox}{Remark}{Why splitting by direction helps}
+For a positive parameter \(\Pstep\), solving with \(I+\Pstep H\) means solving one tridiagonal system per row of the grid. With \(I+\Pstep V\), solve one per column. The two matrices commute because their actions use different coordinates. Alternating-direction implicit (ADI) methods use this to replace a coupled solve by two sweeps.
+\end{notesbox}
+
+\clearpage
+\section{Peaceman--Rachford ADI}\label{sec:pr}
+\datebar{6 November \enspace Lecture 38}
+\subsection{Two sweeps for the heat equation}
+Start from \(u_t=u_{xx}+u_{yy}\) with homogeneous Dirichlet data. Put \(r=k/h^2\). Each sweep is implicit in one direction and evaluates the other at the available stage.
+
+\begin{notesbox}{Definition}{Peaceman--Rachford splitting}
+\begin{align}
+ (I-\tfrac r2\dx)U^* &= (I+\tfrac r2\dy)U^n,\nonumber\\
+ (I-\tfrac r2\dy)U^{n+1} &= (I+\tfrac r2\dx)U^*.
+ \label{eq:prheat}
+\end{align}
+First solve along \(x\) for \(U^*\), also written \(U^{n+1/2}\) in the notes. Then solve along \(y\) for \(U^{n+1}\).
+\end{notesbox}
+To eliminate the stage, apply \(I-\tfrac r2\dx\) to the second sweep. The directional operators commute on the homogeneous tensor grid, so we can use the first sweep on the right.
+\[
+ (I-\tfrac r2\dx)(I-\tfrac r2\dy)U^{n+1}
+ =(I+\tfrac r2\dx)(I+\tfrac r2\dy)U^n.
+\]
+Expanding the products gives the Crank--Nicolson equation with the extra term
+\(\tfrac{r^2}{4}\dx\dy(U^{n+1}-U^n)\) on the left. This term is \(O(k^3)\) for smooth data. After division by \(k\), the time discretisation is second order. The centred differences are second order in space.
+\sourcecheck{The right side of the second sweep uses \(U^*\), the output of the first sweep.}
+
+\clearpage
+\subsection{Steady iteration with boundary data}
+We can use the heat sweeps to solve a time-independent problem. Take \(A\uv=\bvec\) from \eqref{eq:dir}. Set \(\Pstep=r/2>0\) and \(\gamma=1/\Pstep\). Now \(\Pstep\) is a parameter we choose to make the iteration converge faster.
+
+\begin{proofbox}{23}{The steady iteration solves the five-point equation}
+\step{1}{Put in the boundary data.} With \(H=-\dx\) and \(V=-\dy\) acting on the interior vector, the matrix sweeps are
+\begin{align}
+ (\gamma I+H)\uv^* &= (\gamma I-V)\uv^n+\bvec,\nonumber\\
+ (\gamma I+V)\uv^{n+1} &= (\gamma I-H)\uv^*+\bvec.
+ \label{eq:prsteady}
+\end{align}
+Each sweep uses both directions, so each gets the full right-hand side \(\bvec\).
+
+\step{2}{Eliminate the intermediate vector.} Multiply the second equation by \(\gamma I+H\). Use the first equation on the right. The two contributions from \(\bvec\) add to \((\gamma I-H)\bvec+(\gamma I+H)\bvec=2\gamma\bvec\).
+\begin{equation}
+ (\gamma I+H)(\gamma I+V)\uv^{n+1}
+ =(\gamma I-H)(\gamma I-V)\uv^n+2\gamma\bvec.
+ \label{eq:prelim}
+\end{equation}
+
+\step{3}{Set consecutive iterates equal.} With \(\uv^{n+1}=\uv^n=\uv\), the \(\gamma^2 I\) and \(HV\) terms cancel. What remains is \(2\gamma(H+V)\uv=2\gamma\bvec\). Conversely, if \((H+V)\uv=\bvec\), both sweeps accept \(\uv\) at all stages.
+\end{proofbox}
+
+\subsection{Error iteration and the convergence rate}
+\begin{proofbox}{24}{Convergence for Dirichlet data}
+\step{1}{Subtract the fixed-point equation.} Set \(e^n=\uv^n-\uv\) and subtract the equation for \(\uv\) from \eqref{eq:prelim}.
+\[
+ e^{n+1}=T_\Pstep e^n,\qquad
+ T_\Pstep=(\gamma I+V)^{-1}(\gamma I+H)^{-1}(\gamma I-H)(\gamma I-V).
+\]
+In the update for \(\uv^n\), the term independent of \(\uv^n\) is
+\(2\gamma(\gamma I+V)^{-1}(\gamma I+H)^{-1}\bvec\). This term drops out of the error equation.
+
+\step{2}{Track one sine mode.} Use \(w_{pq}\) from Proof 22. Let \(a=\Pstep\lambda_p\) and \(b=\Pstep\lambda_q\). Replacing \(H,V\) by their eigenvalues gives one multiplier per mode.
+\begin{equation}
+ g_{pq}(\Pstep)=\frac{(1-a)(1-b)}{(1+a)(1+b)}
+ =1-\frac{2(a+b)}{(1+a)(1+b)}.
+ \label{eq:prg}
+\end{equation}
+
+\step{3}{Bound the multiplier.} For \(a>0\), \(|1-a|<1+a\), and the same holds for \(b\). Thus \(\rho(T_\Pstep)=\max_{p,q}|g_{pq}(\Pstep)|<1\) for fixed \(\Pstep>0\). Orthogonality of the modes gives \(\|e^n\|_2\le\rho(T_\Pstep)^n\|e^0\|_2\).
+\end{proofbox}
+
+\begin{notesbox}{Result}{Convergence rate per pair of sweeps}
+The logarithmic rate is \(-\log\rho(T_\Pstep)\) when \(\rho(T_\Pstep)>0\). If \(\rho(T_\Pstep)=0\), one pair of sweeps eliminates the error.
+\end{notesbox}
+\begin{notesbox}{Remark}{Changing the parameter}
+If we use \(\Pstep_1,\ldots,\Pstep_n\), multiply the factors \(g_{pq}(\Pstep_j)\) for each mode. On a fixed grid, choosing all parameters in a fixed interval \([\Pstep_{\min},\Pstep_{\max}]\) with \(0<\Pstep_{\min}\le\Pstep_{\max}<\infty\) gives a uniform contraction. For other choices, check that the products actually tend to zero.
+\end{notesbox}
+\sourcecheck{Use the spectral radius of the iteration matrix \(T_\Pstep\) in the rate formula. \(H\) describes the \(x\)-direction part of the Laplacian.}
+
+\section{Douglas--Rachford ADI}\label{sec:dr}
+Use the same two-dimensional heat equation with \(r=k/h^2\). Compare the second sweep with \eqref{eq:prheat}. Here it uses \(U^*\) and a correction evaluated at the old time level.
+
+\begin{proofbox}{25}{From the sweeps to the steady equation}
+\step{1}{Write the sweeps.}
+\begin{align*}
+ (I-r\dx)U^* &= (I+r\dy)U^n,\\
+ (I-r\dy)U^{n+1} &= U^*-r\dy U^n.
+\end{align*}
+
+\step{2}{Eliminate \(U^*\).} Multiply the second sweep by \(I-r\dx\) and substitute the first. The two \(r\dy U^n\) terms cancel.
+\begin{equation}
+ (I-r\dx)(I-r\dy)U^{n+1}=(I+r^2\dx\dy)U^n.
+ \label{eq:drheat}
+\end{equation}
+
+\step{3}{Set \(U^{n+1}=U^n=U\).} The mixed term cancels across the equality. This leaves \((\dx+\dy)U=0\) in the interior.
+\end{proofbox}
+
+For fixed boundary data and a fixed source, the matrix form uses \(\gamma=1/r\).
+\[
+\begin{aligned}
+ (\gamma I+H)\uv^* &= (\gamma I-V)\uv^n+\bvec,\\
+ (\gamma I+V)\uv^{n+1} &=\gamma\uv^*+V\uv^n+\bvec.
+\end{aligned}
+\]
+Subtract the fixed point to remove \(\bvec\), then apply \eqref{eq:drheat} to one sine mode. The result is
+\[
+ g_{pq}=\frac{1+r^2\lambda_p\lambda_q}{(1+r\lambda_p)(1+r\lambda_q)}.
+\]
+It lies in \((0,1)\) on the Dirichlet grid for \(r>0\). The denominator exceeds the numerator by \(r(\lambda_p+\lambda_q)>0\).
+
+\begin{notesbox}{Remark}{Time accuracy}
+For heat flow, expanding \eqref{eq:drheat} gives backward Euler with an extra \(r^2\dx\dy(U^{n+1}-U^n)\) on the left. The scheme is first order in time. Peaceman--Rachford has the Crank--Nicolson time average and is second order in time.
+\end{notesbox}
+
+\section{Neumann problem}\label{sec:neumann}
+\datebar{10 and 13 November}
+Solve \(\Delta u=0\) with prescribed outward derivatives \(g_L(y),g_R(y),g_B(x),g_T(x)\). The signs of the outward derivatives are \(-u_x,u_x,-u_y,u_y\) on the left, right, bottom and top. We need \(u\) at the boundary as well as in the interior, so the unknown vector now has \((N+1)^2\) entries.
+
+\subsection{Ghost points and the matrix}
+Use the five-point equation at the boundary too. For the left side, the centred outward derivative is
+\[
+ g_L(y_j)=\frac{U_{-1,j}-U_{1,j}}{2h},
+ \qquad U_{-1,j}=U_{1,j}+2h g_L(y_j).
+\]
+On the other sides the same rule gives
+\[
+ \begin{aligned}
+ U_{N+1,j}&=U_{N-1,j}+2h g_R(y_j),\\
+ U_{i,-1}&=U_{i,1}+2h g_B(x_i),\\
+ U_{i,N+1}&=U_{i,N-1}+2h g_T(x_i).
+ \end{aligned}
+\]
+
+\begin{notesbox}{Example}{Worked example. The lower-left corner}
+Start from \(4U_{0,0}-U_{-1,0}-U_{1,0}-U_{0,-1}-U_{0,1}=0\). Substitute both ghost values. Each inward neighbour appears twice, and each side contributes one flux term.
+\[
+ 4U_{0,0}-2U_{1,0}-2U_{0,1}=2h[g_L(0)+g_B(0)].
+\]
+At a non-corner side node only one direction has a doubled inward coefficient.
+\end{notesbox}
+
+Let \(T_N\) be the one-dimensional matrix of order \(N+1\).
+\[
+ T_N=\begin{pmatrix}
+ 2&-2\\
+ -1&2&-1\\
+ &\ddots&\ddots&\ddots\\
+ &&-1&2&-1\\
+ &&&-2&2
+ \end{pmatrix}.
+\]
+With \(i\) varying fastest, set \(X=I_{N+1}\kron T_N\), \(Y=T_N\kron I_{N+1}\), and \(A=X+Y\). Then \(A\uv=2hG\). To assemble \(G\), add the outward flux from every side that touches the node. At an interior node \(G=0\).
+
+In the block form of \(A\), all diagonal blocks are \(2I_{N+1}+T_N\). Between adjacent block rows the entries are \(-I_{N+1}\), except the inward entries of the first and last block rows, which are \(-2I_{N+1}\).
+
+\subsection{Eigenvalues, compatibility and the constant mode}
+\begin{proofbox}{26}{Cosine modes and the Neumann nullspace}
+\step{1}{Fit the reflected ends.} Take \(c_p(i)=\cos(p\pi i/N)\), \(0\le p\le N\). At \(i=0\), \(2c_p(0)-2c_p(1)=2-2\cos(p\pi/N)\). The row at \(i=N\) also fits this eigenvalue. The interior rows give the same factor by the cosine addition formula.
+\[
+ T_Nc_p=\mu_p c_p,\qquad
+ \mu_p=4\sin^2(p\pi/(2N)).
+\]
+The product mode \(c_p(i)c_q(j)\) has eigenvalue \(\mu_p+\mu_q\) for \(A\). The only zero eigenvalue is at \((p,q)=(0,0)\), whose vector is constant.
+
+\step{2}{Find the left null vector.} Put \(W=\diag(\tfrac12,1,\ldots,1,\tfrac12)\) and \(W_2=W\kron W\). Multiplying the end rows by \(\tfrac12\) makes \(WT_N\) symmetric. Thus \(A\) is symmetric in the weighted inner product \(\langle u,v\rangle_{W_2}=u^{\mathsf T}W_2v\). Multiplying \(A\uv=2hG\) on the left by \(\ones^{\mathsf T}W_2\) gives the compatibility condition \(\ones^{\mathsf T}W_2G=0\).
+\end{proofbox}
+
+\begin{notesbox}{Result}{Compatibility and uniqueness}
+A discrete solution exists when the weighted total flux vanishes. It is unique once we prescribe its weighted mean, since adding a constant leaves the equations intact.
+\end{notesbox}
+
+\begin{notesbox}{Remark}{How the grid weights reproduce the flux integral}
+A non-corner side node has weight \(1/2\) in \(W_2\). A corner has weight \(1/4\), applied to the two fluxes there. Multiplying by \(2h\) gives weights \(h\) and \(h/2\) for each side, just as in the trapezoidal rule for \(\int_{\partial\R}g\,ds\).
+\end{notesbox}
+
+\subsection{Peaceman--Rachford for Neumann data}
+Use \eqref{eq:prsteady} with the Neumann directional matrices and their right-hand side.
+\[
+\begin{aligned}
+ (\gamma I+X)\uv^*&=(\gamma I-Y)\uv^n+2hG,\\
+ (\gamma I+Y)\uv^{n+1}&=(\gamma I-X)\uv^*+2hG.
+\end{aligned}
+\]
+Eliminating the stage as in Proof 23 gives \(\uv^{n+1}=S_\Pstep\uv^n+d_\Pstep\), where
+\begin{align*}
+ S_\Pstep&=(\gamma I+Y)^{-1}(\gamma I+X)^{-1}(\gamma I-X)(\gamma I-Y),\\
+ d_\Pstep&=2\gamma(\gamma I+Y)^{-1}(\gamma I+X)^{-1}(2hG).
+\end{align*}
+The fixed-point equation is \((X+Y)\uv=2hG\).
+
+\begin{proofbox}{27}{Why one mode survives the Neumann iteration}
+\step{1}{Use the cosine products.} Substitute \(\mu_p,\mu_q\) for the two directional matrices in \(S_\Pstep\).
+\[
+ g_{pq}=\frac{(1-\Pstep\mu_p)(1-\Pstep\mu_q)}
+              {(1+\Pstep\mu_p)(1+\Pstep\mu_q)},\qquad 0\le p,q\le N.
+\]
+At \(p=q=0\) the factor is \(1\). For every other mode at least one eigenvalue is positive, so \(|g_{pq}|<1\) for fixed \(\Pstep>0\).
+
+\step{2}{Check the effect of the forcing.} Compatibility means \(G\) has zero constant component in the weighted inner product. The inverse factors preserve the cosine modes, so \(d_\Pstep\) also has zero constant component. The iteration preserves the initial weighted mean. Its error in the other modes contracts.
+\end{proofbox}
+\sourcecheck{There are \(N\) intervals and \(N+1\) nodes, so the sine argument in \(\mu_p\) has denominator \(2N\). The cosine products are orthogonal with the trapezoidal weights. The full iteration has spectral radius \(1\). The strict bound in the notes applies on the weighted mean-zero subspace.}
+
+\section{Robin problem}\label{sec:robin}
+\datebar{After the Neumann iteration in the source pages}
+The Robin condition combines a boundary value and its normal derivative. For \(\Delta u=0\), the lecture writes the four conditions using derivatives in the positive coordinate directions.
+\[
+\begin{aligned}
+ u_x-p_1u&=f_0(y) &&(x=0), & u_x+q_1u&=f_1(y) &&(x=1),\\
+ u_y-p_2u&=g_0(x) &&(y=0), & u_y+q_2u&=g_1(x) &&(y=1).
+\end{aligned}
+\]
+In outward form \(\partial_n u+\alpha u=\widetilde g\), the data on the left, right, bottom and top are \(-f_0,f_1,-g_0,g_1\).
+
+\begin{notesbox}{Example}{Worked example. A Robin row on the left side}
+The centred condition gives
+\[
+ \frac{U_{1,j}-U_{-1,j}}{2h}-p_1U_{0,j}=f_0(y_j)
+ \quad\Longrightarrow\quad
+ U_{-1,j}=U_{1,j}-2h[p_1U_{0,j}+f_0(y_j)].
+\]
+Insert this into the \(x\)-part \(2U_{0,j}-U_{1,j}-U_{-1,j}\). Move the known term to the right and then divide the row by two. The \(x\)-part is \((1+hp_1)U_{0,j}-U_{1,j}\), with right-hand contribution \(-hf_0(y_j)\).
+\end{notesbox}
+The other endpoint diagonals are \(1+hq_1\), \(1+hp_2\) and \(1+hq_2\). At a corner include the contribution from each incident side.
+
+\subsection{The Robin matrix}
+In one direction the matrix is
+\[
+ E(p,q)=\tfrac12 T_N+h\,\diag(p,0,\ldots,0,q).
+\]
+The interior diagonal is \(1\) and the interior off-diagonals are \(-\tfrac12\). The inward coefficient at either endpoint is \(-1\). Taking \(p=q=0\) gives the half-scaled Neumann matrix.
+
+\clearpage
+\subsection{Peaceman--Rachford for Robin data}
+Set \(H_1=I_{N+1}\kron E(p_1,q_1)\) and \(V_1=E(p_2,q_2)\kron I_{N+1}\). Here \((H_1+V_1)\uv=hG\), with \(G\) the sum of outward data from the incident sides. The sweeps for that scaling are
+\[
+\begin{aligned}
+ (\gamma I+H_1)\uv^*&=(\gamma I-V_1)\uv^n+hG,\\
+ (\gamma I+V_1)\uv^{n+1}&=(\gamma I-H_1)\uv^*+hG.
+\end{aligned}
+\]
+The same elimination as in Proof 23 gives the desired fixed-point equation.
+
+\begin{notesbox}{Result}{Robin data remove the constant null mode}
+Suppose \(p_1,q_1,p_2,q_2\ge0\) and at least one coefficient is positive. The weighted Neumann energy is a sum of squared differences between adjacent nodes. The Robin terms add nonnegative boundary squares. A vector with zero energy must be constant, and a positive boundary coefficient forces that constant to be zero. Thus \(H_1+V_1\) is positive definite in the weighted inner product.
+
+The two directional matrices still share a weighted orthogonal basis. Each mode has at least one positive directional eigenvalue, so the bound from \eqref{eq:prg} gives convergence for fixed \(\Pstep>0\).
+\end{notesbox}
+\sourcecheck{Ghost elimination gives inward entry \(-1\) next to the endpoint diagonal \(1+hp\) or \(1+hq\). In the ADI equations the implicit directional matrix has a plus sign and the explicit one has a minus sign.}
+
+\clearpage
+\part{Hyperbolic equations}
+
+\section{The wave equation in one space dimension}\label{sec:wave1}
+\datebar{16 November}
+Take the unit-speed wave equation on \(0<x<1\).
+\[
+ u_{tt}=u_{xx},\qquad u(x,0)=f(x),\qquad u_t(x,0)=g(x),
+ \qquad u(0,t)=u(1,t)=0.
+\]
+We need initial displacement \(f\) and initial velocity \(g\), since the equation is second order in time. Put \(\nu=k/h\).
+
+\begin{notesbox}{Definition}{Explicit three-level scheme}
+Use \(\dt U^n/k^2=\dx U^n/h^2\) and solve for \(U^{n+1}\).
+\begin{equation}
+ U_i^{n+1}=2(1-\nu^2)U_i^n+\nu^2(U_{i-1}^n+U_{i+1}^n)-U_i^{n-1}.
+ \label{eq:explicitwave}
+\end{equation}
+The recurrence uses two known time levels. We know \(U_i^0=f(x_i)\) and use \(g(x_i)\) to obtain \(U_i^1\).
+\end{notesbox}
+
+\subsection{First time level from the velocity}
+\begin{proofbox}{28}{Starting a three-level method}
+\step{1}{Centre the initial velocity.}
+Write \(g_i=(U_i^1-U_i^{-1})/(2k)\) in the discrete equations. The fictitious value \(U_i^{-1}\) is \(U_i^1-2kg_i\).
+
+\step{2}{Eliminate the fictitious value.} Set \(n=0\) in the equation \(\dt U^n=\nu^2\dx U^n\) and use \(U^0=f\).
+\[
+ \begin{aligned}
+ U_i^1-2f_i+(U_i^1-2kg_i)&=\nu^2(f_{i-1}-2f_i+f_{i+1}),\\
+ U_i^1&=f_i+kg_i+\tfrac{\nu^2}{2}(f_{i-1}-2f_i+f_{i+1}).
+ \end{aligned}
+\]
+On the boundary set \(U^1=0\). The last term at an interior node approximates \(\tfrac{k^2}{2}u_{tt}(x_i,0)=\tfrac{k^2}{2}f''(x_i)\).
+\end{proofbox}
+\sourcecheck{The centred velocity uses \(2k\) in the denominator. Rearranging it gives \(U_i^{-1}=U_i^1-2kg_i\).}
+
+\subsection{Truncation error and the CFL condition}
+Taylor expansion of the smooth exact solution gives the PDE-scaled residual
+\[
+ \frac{\dt u}{k^2}-\frac{\dx u}{h^2}
+ =\frac{k^2}{12}u_{tttt}-\frac{h^2}{12}u_{xxxx}+O(k^4+h^4).
+\]
+Its order is \(O(k^2+h^2)\). If you start from the undivided recurrence \eqref{eq:explicitwave}, divide the residual by \(k^2\) to get this scaling.
+
+\begin{proofbox}{29}{Von Neumann stability of the explicit wave scheme}
+\step{1}{Use a Fourier mode.} Put \(U_i^n=\zeta^n\exp(\mathrm{i}\,i\phi)\), where \(\mathrm{i}=\sqrt{-1}\). Each space shift contributes \(e^{\pm\mathrm{i}\phi}\). Thus \(\dx\) contributes \(2\cos\phi-2=-4\sin^2(\phi/2)\), and \(\dt\) contributes \(\zeta-2+\zeta^{-1}\).
+
+\step{2}{Find the roots.} The mode equation is \(\zeta^2-2C\zeta+1=0\), with
+\[
+ C=1-2\nu^2\sin^2(\phi/2).
+\]
+The product of the roots is \(1\). For \(|C|<1\) they are conjugates on the unit circle. For \(|C|>1\) one real root has modulus greater than \(1\).
+
+\step{3}{Check all spatial modes.} The inequality \(C\le1\) holds for every angle. The other one, \(C\ge-1\), requires \(\nu^2\sin^2(\phi/2)\le1\). The largest possible \(\sin^2(\phi/2)\) is \(1\). Therefore the mesh-independent bound is \(0<\nu\le1\). The finite-grid Dirichlet sine angles \(p\pi/N\), \(1\le p<N\), are strictly between \(0\) and \(\pi\), so the roots are distinct even at \(\nu=1\).
+\end{proofbox}
+\begin{notesbox}{Result}{Courant--Friedrichs--Lewy condition}
+For the explicit unit-speed scheme in one dimension, take \(k/h\le1\).
+\end{notesbox}
+
+\subsection{The implicit theta family}
+In the spatial difference, replace \(U^n\) by
+\(\theta U^{n+1}+(1-2\theta)U^n+\theta U^{n-1}=U^n+\theta\dt U^n\). Move the new term to the left.
+\begin{equation}
+ (I-\theta\nu^2\dx)\dt U^n=\nu^2\dx U^n,\qquad \theta\ge0.
+ \label{eq:weightedwave}
+\end{equation}
+The case \(\theta=0\) gives the explicit scheme. The lecture calls \(\theta=\tfrac14\) the von Neumann scheme. For \(\theta>0\), solve a tridiagonal system for \(U^{n+1}\). The symmetric time average changes the scaled spatial difference by \(O(k^2)\), so the residual remains \(O(k^2+h^2)\).
+
+\begin{proofbox}{30}{Stability of the weighted wave scheme}
+\step{1}{Substitute the same Fourier mode.} Write \(s=\sin^2(\phi/2)\). The amplification equation becomes
+\[
+ (1+4\theta\nu^2s)(\zeta-2+\zeta^{-1})=-4\nu^2s,\qquad
+ \frac{\zeta+\zeta^{-1}}{2}=1-\frac{2\nu^2s}{1+4\theta\nu^2s}.
+\]
+
+\step{2}{Apply the root bound from Proof 29.} The right side is at most \(1\). Its lower bound of \(-1\) is equivalent to
+\[
+ (1-4\theta)\nu^2 s\le1.
+\]
+For \(\theta\ge\tfrac14\) this holds for all \(\nu\). For \(0\le\theta<\tfrac14\), use \(s\le1\) and require \(\nu^2\le1/(1-4\theta)\).
+\end{proofbox}
+
+\clearpage
+\section{The wave equation in two space dimensions}\label{sec:wave2}
+Take \(u_{tt}=u_{xx}+u_{yy}\) on the unit square with \(u(x,y,0)=f(x,y)\), \(u_t(x,y,0)=g(x,y)\), and \(u=0\) along the boundary. Set \(D=\dx+\dy\).
+
+\begin{notesbox}{Definition}{The 2D schemes}
+The explicit stencil is \(\dt U^n=\nu^2 D U^n\). Solving for the top level gives
+\[
+\begin{aligned}
+ U_{i,j}^{n+1}&=2(1-2\nu^2)U_{i,j}^n-U_{i,j}^{n-1}\\
+ &\quad+\nu^2(U_{i-1,j}^n+U_{i+1,j}^n+U_{i,j-1}^n+U_{i,j+1}^n).
+\end{aligned}
+\]
+The weighted method is \((I-\theta\nu^2D)\dt U^n=\nu^2 D U^n\). Both have \(O(k^2+h^2)\) scaled truncation error under the same smoothness assumptions as in one dimension.
+\end{notesbox}
+
+\textbf{Startup.} Use \(U^{-1}=U^1-2kg\) as before. For the weighted scheme this gives
+\[
+ (I-\theta\nu^2D)(U^1-f-kg)=\tfrac{\nu^2}{2}Df.
+\]
+With \(\theta=0\), read this as \(U^1=f+kg+\tfrac{\nu^2}{2}Df\). The same formula with \(D=\dx\) starts the one-dimensional method.
+
+\textbf{Stability.} Each space direction contributes a term to the Fourier calculation. Replace \(s\) in Proof 30 by \(\sin^2(\phi/2)+\sin^2(\psi/2)\), whose maximum is \(2\). This is the only change in the modal bound.
+
+\begin{notesbox}{Result}{Wave stability on uniform grids}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Scheme & One space dimension & Two space dimensions\\
+\midrule
+Explicit, \(\theta=0\) & \(\nu\le1\) & \(\nu\le1/\sqrt{2}\)\\[2pt]
+\(0<\theta<\tfrac14\) & \(\nu^2\le1/(1-4\theta)\) & \(\nu^2\le1/[2(1-4\theta)]\)\\[2pt]
+\(\theta\ge\tfrac14\) & no restriction on \(\nu\) & no restriction on \(\nu\)\\
+\bottomrule
+\end{tabular}
+\end{center}
+Here \(\nu=k/h\). These are the mesh-independent bounds from the mode calculation.
+\end{notesbox}
+
+\sourcecheck{The square problem needs boundary values along all four sides for the sine-mode calculation. One source lists only corner values. The notes mention a possible wave-equation ADI scheme and then switch to the heat-equation exercise.}
+
+\clearpage
+\part{Heat-equation exercise}
+
+\section{A single sine mode under four schemes}\label{sec:exercise}
+\datebar{Exercise following the wave lecture}
+\begin{notesbox}{Example}{Set up the exercise}
+Solve \(u_t=u_{xx}\) on \(0<x<1\), with \(u(x,0)=\sin(\pi x)\) and \(u(0,t)=u(1,t)=0\). The exact solution is \(e^{-\pi^2t}\sin(\pi x)\).
+
+On the grid write \(s_i=\sin(\pi i/N)\) and \(U_i^n=a_n s_i\). Set \(r=k/h^2\), \(\phi=\pi/N\), and \(\sigma=\sin^2(\phi/2)\). Since \(\dx s_i=-4\sigma s_i\), each new time level stays in the same spatial mode. The problem is to find the scalar \(a_n\).
+\end{notesbox}
+
+\subsection{Schmidt, Crank--Nicolson and Douglas}
+Each of these schemes relates two time levels.
+\begin{align*}
+ U^{n+1} &=(I+r\dx)U^n &&\text{(Schmidt / explicit)},\\
+ (I-\tfrac r2\dx)U^{n+1}&=(I+\tfrac r2\dx)U^n &&\text{(Crank--Nicolson)},\\
+ \bigl[I-\tfrac12(r-\tfrac16)\dx\bigr]U^{n+1}
+ &=\bigl[I+\tfrac12(r+\tfrac16)\dx\bigr]U^n &&\text{(Douglas compact)}.
+\end{align*}
+
+\begin{notesbox}{Example}{Worked solution. Read off the growth factor}
+For Crank--Nicolson, substitute \(a_n s_i\) and cancel the common spatial mode. This gives \((1+2r\sigma)a_{n+1}=(1-2r\sigma)a_n\). Divide by \(1+2r\sigma\). The other rows follow by the same substitution. Since \(a_0=1\), in each case \(a_n=G^n\).
+\begin{center}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Method & \(G=a_{n+1}/a_n\) when \(a_n\ne0\)\\
+\midrule
+Schmidt & \(1-4r\sigma\)\\
+Crank--Nicolson & \(\dfrac{1-2r\sigma}{1+2r\sigma}\)\\
+Douglas compact & \(\dfrac{1-2(r+\tfrac16)\sigma}{1+2(r-\tfrac16)\sigma}\)\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{notesbox}
+
+\textbf{Stability across modes.} Replace \(\sigma\) by \(\sin^2(p\pi/(2N))\). The usual full-mode bound for Schmidt is \(r\le\tfrac12\). Crank--Nicolson and Douglas have modulus at most \(1\) for every \(r>0\). In particular, write the Douglas quotient as \((a-b)/(a+b)\), where \(a=1-\sigma/3>0\) and \(b=2r\sigma\ge0\).
+
+\clearpage
+\subsection{DuFort--Frankel}
+Centre the time derivative and replace the centre value in the spatial second difference by \((U_i^{n+1}+U_i^{n-1})/2\). Gather the terms at time \(n+1\).
+\[
+ (1+2r)U_i^{n+1}=2r(U_{i-1}^n+U_{i+1}^n)+(1-2r)U_i^{n-1}.
+\]
+
+\begin{notesbox}{Example}{Worked solution. A recurrence for the same sine mode}
+Substitute \(U_i^n=a_n s_i\). The two neighbours sum to \(2a_n\cos(\phi)s_i\). Hence
+\[
+ (1+2r)a_{n+1}=4r\cos(\phi)a_n+(1-2r)a_{n-1}.
+\]
+Start with \(a_0=1\) and take one Crank--Nicolson step \(a_1=(1-2r\sigma)/(1+2r\sigma)\), for example. Use the recurrence to advance the remaining levels.
+\end{notesbox}
+
+\subsection{DuFort--Frankel stability and consistency}
+The undated fragment above the 3 November heading contains the end of this stability calculation.
+
+\begin{proofbox}{31}{The two DuFort--Frankel amplification roots}
+\step{1}{Solve the modal recurrence.} Use an arbitrary Fourier angle \(\phi\) and write \(a_n=\zeta^n\). The scalar quadratic has roots
+\[
+ \zeta_\pm=\frac{2r\cos\phi\ \pm\sqrt{1-4r^2\sin^2\phi}}{1+2r}.
+\]
+
+\step{2}{Check the real-root case.} When \(1-4r^2\sin^2\phi\ge0\), the square root is at most \(1\). The triangle inequality gives
+\[
+ |\zeta_\pm|\le\frac{2r+1}{1+2r}=1.
+\]
+If the discriminant is zero, the repeated root has modulus less than \(1\).
+
+\step{3}{Check the complex-root case.} The roots are conjugates. Their squared modulus is
+\[
+ |\zeta_\pm|^2
+ =\frac{4r^2\cos^2\phi+4r^2\sin^2\phi-1}{(1+2r)^2}
+ =\frac{2r-1}{2r+1}<1.
+\]
+This proves the unconditional von Neumann root bound.
+\end{proofbox}
+
+\begin{notesbox}{Result}{Consistency requires \(k/h\to0\)}
+The replacement of \(2u(t)\) by \(u(t+k)+u(t-k)\) adds a term \((k/h)^2u_{tt}\) to the PDE-scaled residual. The heat equation is recovered for smooth general solutions as \(h,k\to0\) with \(k/h\to0\). The root bound holds for all \(r>0\).
+\end{notesbox}
+
+\clearpage
+\subsection{The two-dimensional heat formulas}
+The last lecture pages give the Peaceman--Rachford product from Section~\ref{sec:pr} and a second product using the one-dimensional Douglas compact factors. For \(j=1,2\), write
+\[
+ L_j=I-\tfrac12(r-\tfrac16)\delta_j^2,\qquad
+ R_j=I+\tfrac12(r+\tfrac16)\delta_j^2.
+\]
+The compact equation is \(L_1L_2U^{n+1}=R_1R_2U^n\). To implement it, solve
+\[
+ L_1U^*=R_2U^n,\qquad L_2U^{n+1}=R_1U^*.
+\]
+Multiplying the second sweep by \(L_1\) and commuting it with \(R_1\) recovers the product equation.
+
+\begin{notesbox}{Remark}{Where the compact correction comes from}
+In one direction the scheme is Crank--Nicolson with spatial operator \(h^{-2}(I+\delta_j^2/12)^{-1}\delta_j^2\). The correction \(I+\delta_j^2/12\) cancels the leading \(h^2\partial_j^4u/12\) term in the Taylor expansion of the ordinary centred second difference.
+\end{notesbox}
+
+\sourcecheck{On the final pages, the two sweeps labelled Peaceman--Rachford have the Douglas--Rachford form in Section~\ref{sec:dr}. The last page labels the compact product Douglas--Rachford and mixes the stage indices. The compact sweeps above reproduce its product equation.}
+
+\section*{Sources and lecture coverage}
+\phantomsection
+\addcontentsline{toc}{section}{Sources and lecture coverage}
+
+\begingroup\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Date & Material in the supplied notes\\
+\midrule
+3 Nov. & Elliptic equations and the Dirichlet five-point stencil\\
+6 Nov. & Peaceman--Rachford ADI (lecture 38)\\
+10 and 13 Nov. & Neumann problem and its iteration, followed by Robin data\\
+16 Nov. & Wave equation, followed by a heat-equation exercise\\
+\bottomrule
+\end{tabular}
+
+\begin{itemize}\setlength{\itemsep}{2pt}\setlength{\parsep}{0pt}
+\item \texttt{till-quiz2.pdf}, pp.\ 36--38, ends with the explicit two-dimensional heat scheme and its stability.
+\item Soumya's handwritten PDF, \emph{MTL712 (Computational Methods For Differential Equations) 5}, has the elliptic material on pp.\ 1--7 and the wave and heat material on pp.\ 8--10. The DuFort--Frankel fragment at the top of p.\ 1 is undated. The accompanying notebook photos from 19:13:52 to 19:13:54 include the 6 November ADI lecture.
+\item Aditya's notebook photos supply the Douglas--Rachford factorisation and fill in matrix and convergence steps. They also cover the wave schemes and the four-method heat exercise. Undated pages follow the topic order. The 19 November filenames record WhatsApp timestamps.
+\item Soumya's \emph{MTL712 Elliptic PDE Combined Notes} provided a second reading of the elliptic pages.
+\end{itemize}
+
+\textbf{ADI references.}
+Peaceman and Rachford, \emph{The Numerical Solution of Parabolic and Elliptic Differential Equations} (1955). \href{https://doi.org/10.1137/0103003}{Paper}
+
+Douglas and Rachford, \emph{On the Numerical Solution of Heat Conduction Problems in Two and Three Space Variables} (1956). \href{https://doi.org/10.1090/S0002-9947-1956-0084194-4}{Paper}
+\endgroup
+
+\end{document}

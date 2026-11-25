@@ -1,0 +1,3 @@
+Backward Euler factor = 0.16666666666666666
+Forward Euler factor = -4.0
+Maximum absolute error = 0.15992871966758118

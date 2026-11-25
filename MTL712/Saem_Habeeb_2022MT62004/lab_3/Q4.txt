@@ -1,0 +1,4 @@
+method	max_central_energy_error	final_central_energy_error	max_native_RK4_energy_error
+Stormer 2	0.00026514459	7.34219159e-06	-
+Stormer 4	0.000383922828	1.07002405e-05	-
+RK4	0.000382686001	1.0309141e-05	7.67857367e-08
